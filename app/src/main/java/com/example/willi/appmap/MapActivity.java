@@ -6,6 +6,7 @@ import android.app.Activity;
 import android.content.Intent;
 import android.content.IntentSender;
 import android.content.pm.PackageManager;
+import android.graphics.Color;
 import android.location.Address;
 import android.location.Geocoder;
 import android.location.Location;
@@ -24,6 +25,12 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 
+import com.android.volley.Request;
+import com.android.volley.RequestQueue;
+import com.android.volley.Response;
+import com.android.volley.VolleyError;
+import com.android.volley.toolbox.StringRequest;
+import com.android.volley.toolbox.Volley;
 import com.google.android.gms.common.api.ApiException;
 import com.google.android.gms.common.api.CommonStatusCodes;
 import com.google.android.gms.common.api.ResolvableApiException;
@@ -45,11 +52,15 @@ import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MapStyleOptions;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
+import com.google.maps.android.PolyUtil;
 
 import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.io.IOException;
 import java.util.Calendar;
@@ -62,8 +73,6 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback 
 
     private final static int LOCATION_PERMISSION = 0;
     private static final double RADIUS_OF_EARTH_KM = 6371;
-    private static final double LATAEROPUERTO = 4.697730480112796;
-    private static final double LONGAEROPUERTO = -74.14075972845345;
     private static final double ARRIBADERLAT = 4.792509;
     private static final double ARRIBADERLONG = -73.909356;
     private static final double ABAJOIZQLAT = 4.548875;
@@ -85,6 +94,7 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback 
     private LocationRequest mLocationRequest;
     private LocationCallback mLocationCallback;
     private List<String> listalocations;
+    private JSONObject jso;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -94,7 +104,7 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback 
 
         mAddress = findViewById(R.id.mAddress);
         distance = findViewById(R.id.distancia);
-        voy=0;
+        voy = 0;
 
         mLocationRequest = createLocationRequest();
 
@@ -128,13 +138,14 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback 
                         // Location settings are not satisfied, but this can be fixed by showing the user a dialog.
                         try {// Show the dialog by calling startResolutionForResult(), and check the result in onActivityResult().
                             ResolvableApiException resolvable = (ResolvableApiException) e;
-                            resolvable.startResolutionForResult(MapActivity.this ,
+                            resolvable.startResolutionForResult(MapActivity.this,
                                     LOCATION_PERMISSION);
                         } catch (IntentSender.SendIntentException sendEx) {
-                        // Ignore the error.
-                        } break;
+                            // Ignore the error.
+                        }
+                        break;
                     case LocationSettingsStatusCodes.SETTINGS_CHANGE_UNAVAILABLE:
-                    // Location settings are not satisfied. No way to fix the settings so we won't show the dialog.
+                        // Location settings are not satisfied. No way to fix the settings so we won't show the dialog.
                         break;
                 }
             }
@@ -147,34 +158,49 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback 
                 Location location = locationResult.getLastLocation();
                 Log.i("LOCATION", "Location update in the callback: " + location);
                 if (location != null && mMap != null) {
-                    if (voy==0)
-                    {
-                        LatLng user = new LatLng(location.getLatitude() , location.getLongitude());
-                        oldmark=mMap.addMarker(new MarkerOptions().position(user).title("Usted").icon(BitmapDescriptorFactory.fromResource(R.drawable.userpin32)));
-                        newmark=oldmark;
+                    if (voy == 0) {
+                        LatLng user = new LatLng(location.getLatitude(), location.getLongitude());
+                        oldmark = mMap.addMarker(new MarkerOptions().position(user).title("Usted").icon(BitmapDescriptorFactory.fromResource(R.drawable.userpin32)));
+                        newmark = oldmark;
                         mMap.moveCamera(CameraUpdateFactory.zoomTo(19));
                         mMap.moveCamera(CameraUpdateFactory.newLatLng(user));
                         voy++;
-                        if (lastmark!=null)
-                        {
-                            String s =getString(R.string.distancia);
-                            distance.setText(s+ " " + String.valueOf(distancepoint(newmark.getPosition().latitude,
-                                    newmark.getPosition().longitude, lastmark.getPosition().latitude,lastmark.getPosition().longitude)) + " Km");
-                        }
-                    }
-                    else
-                    {
-                        LatLng user = new LatLng(location.getLatitude() , location.getLongitude());
-                        oldmark.remove();
-                        newmark=mMap.addMarker(new MarkerOptions().position(user).title("Usted").icon(BitmapDescriptorFactory.fromResource(R.drawable.userpin32)));
-                        oldmark=newmark;
-                        if (lastmark!=null)
-                        {
-                            String s =getString(R.string.distancia);
-                            distance.setText(s+ " " + String.valueOf(distancepoint(newmark.getPosition().latitude,
-                                    newmark.getPosition().longitude, lastmark.getPosition().latitude,lastmark.getPosition().longitude)) + " Km");
-                        }
 
+                    } else {
+                        LatLng user = new LatLng(location.getLatitude(), location.getLongitude());
+                        oldmark.remove();
+                        newmark = mMap.addMarker(new MarkerOptions().position(user).title("Usted").icon(BitmapDescriptorFactory.fromResource(R.drawable.userpin32)));
+                        oldmark = newmark;
+
+                    }
+                    if (lastmark!=null)
+                    {
+                        String s = getString(R.string.distancia);
+                        distance.setText(s + " " + String.valueOf(distancepoint(newmark.getPosition().latitude,
+                                newmark.getPosition().longitude, lastmark.getPosition().latitude, lastmark.getPosition().longitude)) + " Km");
+
+
+                        String url = "https://maps.googleapis.com/maps/api/directions/json?origin="+newmark.getPosition().latitude+","+newmark.getPosition().longitude+"&destination="+lastmark.getPosition().latitude+","+lastmark.getPosition().longitude+ "&key=" + "AIzaSyCD3_5vFwy-QFyFsomsi-WMxUUUcW5TtQQ";
+                        RequestQueue queue = Volley.newRequestQueue(getApplicationContext());
+                        StringRequest stringRequest = new StringRequest(Request.Method.GET, url, new Response.Listener<String>() {
+                            @Override
+                            public void onResponse(String response) {
+                                try {
+                                    Log.i("LOCATION", response);
+                                    jso = new JSONObject(response);
+                                    trazarRuta(jso);
+                                } catch (JSONException e) {
+                                    e.printStackTrace();
+                                }
+
+                            }
+                        }, new Response.ErrorListener() {
+                            @Override
+                            public void onErrorResponse(VolleyError error) {
+
+                            }
+                        });
+                        queue.add(stringRequest);
                     }
                 }
             }
@@ -183,8 +209,7 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback 
             @Override
             public void onClick(View v) {
                 String s = getString(R.string.Ir);
-                if (mAddress.getText().toString().equals(s))
-                {
+                if (mAddress.getText().toString().equals(s)) {
                     mAddress.setText("");
                 }
             }
@@ -192,15 +217,16 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback 
 
         mAddress.setOnEditorActionListener(new TextView.OnEditorActionListener() {
             Geocoder mGeocoder = new Geocoder(getBaseContext());
+
             public boolean onEditorAction(TextView v, int actionId, KeyEvent event) {
 
                 //mAddress.setText("");
 
-                if (actionId == EditorInfo.IME_ACTION_DONE){
+                if (actionId == EditorInfo.IME_ACTION_DONE) {
                     String addressString = mAddress.getText().toString();
                     if (!addressString.isEmpty()) {
                         try {
-                            List<Address> addresses = mGeocoder.getFromLocationName(addressString, 2, ABAJOIZQLAT,ABAJOIZQLONG,ARRIBADERLAT,ARRIBADERLONG);
+                            List<Address> addresses = mGeocoder.getFromLocationName(addressString, 2, ABAJOIZQLAT, ABAJOIZQLONG, ARRIBADERLAT, ARRIBADERLONG);
 
                             if (addresses != null && !addresses.isEmpty()) {
 
@@ -213,19 +239,68 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback 
                                     myMarkerOptions.icon(BitmapDescriptorFactory.fromResource(R.drawable.navpin32));
                                     lastmark = mMap.addMarker(myMarkerOptions);
                                     mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(position, 14));
-                                    String s =getString(R.string.distancia);
-                                    distance.setText(s+ " " + String.valueOf(distancepoint(newmark.getPosition().latitude,
-                                            newmark.getPosition().longitude, position.latitude,position.longitude)) + " Km");
+                                    String s = getString(R.string.distancia);
+                                    distance.setText(s + " " + String.valueOf(distancepoint(newmark.getPosition().latitude,
+                                            newmark.getPosition().longitude, position.latitude, position.longitude)) + " Km");
+
+
+
                                 }
-                            } else {Toast.makeText(MapActivity.this, "Dirección no encontrada", Toast.LENGTH_SHORT).show();}
+                            } else {
+                                Toast.makeText(MapActivity.this, "Dirección no encontrada", Toast.LENGTH_SHORT).show();
+                            }
                         } catch (IOException e) {
                             e.printStackTrace();
                         }
-                    } else {Toast.makeText(MapActivity.this, "La dirección esta vacía", Toast.LENGTH_SHORT).show();}
+                    } else {
+                        Toast.makeText(MapActivity.this, "La dirección esta vacía", Toast.LENGTH_SHORT).show();
+                    }
                 }
                 return false;
             }
         });
+    }
+
+    private void trazarRuta(JSONObject jso) {
+
+        JSONArray jRoutes;
+        JSONArray jLegs;
+        JSONArray jSteps;
+
+        try {
+            jRoutes = jso.getJSONArray("routes");
+            for (int i=0; i<jRoutes.length();i++){
+
+                jLegs = ((JSONObject)(jRoutes.get(i))).getJSONArray("legs");
+
+                for (int j=0; j<jLegs.length();j++){
+
+                    jSteps = ((JSONObject)jLegs.get(j)).getJSONArray("steps");
+
+                    for (int k = 0; k<jSteps.length();k++){
+
+
+                        String polyline = ""+((JSONObject)((JSONObject)jSteps.get(k)).get("polyline")).get("points");
+                        Log.i("end",""+polyline);
+                        List<LatLng> list = PolyUtil.decode(polyline);
+                        mMap.addPolyline(new PolylineOptions().addAll(list).color(Color.BLUE).width(10));
+
+
+
+                    }
+
+
+
+                }
+
+
+
+            }
+
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+
     }
 
     public double distancepoint(double lat1, double long1, double lat2, double long2) {
@@ -276,11 +351,11 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback 
     }
 
     private void startLocationUpdates() {
-        Log.i("LOCATION","1111111111111111111");
+        Log.i("LOCATION", "1111111111111111111");
         if (ContextCompat.checkSelfPermission(this,
                 Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
             mFusedLocationClient.requestLocationUpdates(mLocationRequest, mLocationCallback, null);
-            Log.i("LOCATION","222222222222222222");
+            Log.i("LOCATION", "222222222222222222");
         }
     }
 
@@ -333,13 +408,10 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback 
 
         Date currentTime = Calendar.getInstance().getTime();
 
-        if (currentTime.getHours() >= 18 || currentTime.getHours() <= 6)
-        {
+        if (currentTime.getHours() >= 18 || currentTime.getHours() <= 6) {
             mMap.setMapStyle(MapStyleOptions
                     .loadRawResourceStyle(this, R.raw.noche));
-        }
-        else
-        {
+        } else {
             mMap.setMapStyle(MapStyleOptions
                     .loadRawResourceStyle(this, R.raw.dia));
         }
@@ -354,17 +426,30 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback 
 
         mMap.getUiSettings().setZoomControlsEnabled(true);
 
-        LatLng Tequendama = new LatLng(4.613079,-74.070752);
-        LatLng Ibis = new LatLng(4.614641,-74.069025);
-        LatLng Marriott = new LatLng(4.659429,-74.108398);
-        LatLng hilton = new LatLng(4.655761,-74.055403);
-        LatLng Atton = new LatLng(4.685638,-74.056165);
+        LatLng Tequendama = new LatLng(4.613079, -74.070752);
+        LatLng Ibis = new LatLng(4.614641, -74.069025);
+        LatLng Marriott = new LatLng(4.659429, -74.108398);
+        LatLng hilton = new LatLng(4.655761, -74.055403);
+        LatLng Atton = new LatLng(4.685638, -74.056165);
 
         mMap.addMarker(new MarkerOptions().position(Tequendama).title("Tequendama").snippet("10:00 - 15:00").icon(BitmapDescriptorFactory.fromResource(R.drawable.placeholder32)));
         mMap.addMarker(new MarkerOptions().position(Ibis).title("Ibis").snippet("10:00 - 15:00").icon(BitmapDescriptorFactory.fromResource(R.drawable.placeholder32)));
         mMap.addMarker(new MarkerOptions().position(Marriott).title("Marriott").snippet("10:00 - 15:00").icon(BitmapDescriptorFactory.fromResource(R.drawable.placeholder32)));
         mMap.addMarker(new MarkerOptions().position(hilton).title("Hilton").snippet("10:00 - 15:00").icon(BitmapDescriptorFactory.fromResource(R.drawable.placeholder32)));
         mMap.addMarker(new MarkerOptions().position(Atton).title("Atton").snippet("10:00 - 15:00").icon(BitmapDescriptorFactory.fromResource(R.drawable.placeholder32)));
+
+
+        /*if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            // TODO: Consider calling
+            //    ActivityCompat#requestPermissions
+            // here to request the missing permissions, and then overriding
+            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+            //                                          int[] grantResults)
+            // to handle the case where the user grants the permission. See the documentation
+            // for ActivityCompat#requestPermissions for more details.
+            return;
+        }
+        mMap.setMyLocationEnabled(true);*/
 
     }
 }
