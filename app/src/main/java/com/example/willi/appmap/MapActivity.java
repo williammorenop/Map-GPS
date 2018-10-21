@@ -6,6 +6,8 @@ import android.app.Activity;
 import android.content.Intent;
 import android.content.IntentSender;
 import android.content.pm.PackageManager;
+import android.location.Address;
+import android.location.Geocoder;
 import android.location.Location;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
@@ -13,7 +15,11 @@ import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentActivity;
 import android.support.v4.content.ContextCompat;
 import android.util.Log;
+import android.view.KeyEvent;
+import android.view.View;
+import android.view.inputmethod.EditorInfo;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -36,6 +42,7 @@ import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.MapStyleOptions;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.tasks.OnFailureListener;
@@ -44,6 +51,9 @@ import com.google.android.gms.tasks.Task;
 
 import org.json.JSONArray;
 
+import java.io.IOException;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.List;
 
 public class MapActivity extends FragmentActivity implements OnMapReadyCallback {
@@ -54,10 +64,19 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback 
     private static final double RADIUS_OF_EARTH_KM = 6371;
     private static final double LATAEROPUERTO = 4.697730480112796;
     private static final double LONGAEROPUERTO = -74.14075972845345;
+    private static final double ARRIBADERLAT = 4.792509;
+    private static final double ARRIBADERLONG = -73.909356;
+    private static final double ABAJOIZQLAT = 4.548875;
+    private static final double ABAJOIZQLONG = -74.271749;
+
     private static int voy;
 
     private Marker oldmark;
     private Marker newmark;
+    private Marker lastmark;
+
+    private EditText mAddress;
+    private TextView distance;
 
 
     //UNA SOLA VEZ
@@ -73,6 +92,8 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback 
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_map);
 
+        mAddress = findViewById(R.id.mAddress);
+        distance = findViewById(R.id.distancia);
         voy=0;
 
         mLocationRequest = createLocationRequest();
@@ -134,6 +155,12 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback 
                         mMap.moveCamera(CameraUpdateFactory.zoomTo(19));
                         mMap.moveCamera(CameraUpdateFactory.newLatLng(user));
                         voy++;
+                        if (lastmark!=null)
+                        {
+                            String s =getString(R.string.distancia);
+                            distance.setText(s+ " " + String.valueOf(distancepoint(newmark.getPosition().latitude,
+                                    newmark.getPosition().longitude, lastmark.getPosition().latitude,lastmark.getPosition().longitude)) + " Km");
+                        }
                     }
                     else
                     {
@@ -141,12 +168,75 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback 
                         oldmark.remove();
                         newmark=mMap.addMarker(new MarkerOptions().position(user).title("Usted").icon(BitmapDescriptorFactory.fromResource(R.drawable.userpin32)));
                         oldmark=newmark;
-                        //mMap.moveCamera(CameraUpdateFactory.zoomTo(19));
-                        mMap.moveCamera(CameraUpdateFactory.newLatLng(user));
+                        if (lastmark!=null)
+                        {
+                            String s =getString(R.string.distancia);
+                            distance.setText(s+ " " + String.valueOf(distancepoint(newmark.getPosition().latitude,
+                                    newmark.getPosition().longitude, lastmark.getPosition().latitude,lastmark.getPosition().longitude)) + " Km");
+                        }
+
                     }
                 }
             }
         };
+        mAddress.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                String s = getString(R.string.Ir);
+                if (mAddress.getText().toString().equals(s))
+                {
+                    mAddress.setText("");
+                }
+            }
+        });
+
+        mAddress.setOnEditorActionListener(new TextView.OnEditorActionListener() {
+            Geocoder mGeocoder = new Geocoder(getBaseContext());
+            public boolean onEditorAction(TextView v, int actionId, KeyEvent event) {
+
+                //mAddress.setText("");
+
+                if (actionId == EditorInfo.IME_ACTION_DONE){
+                    String addressString = mAddress.getText().toString();
+                    if (!addressString.isEmpty()) {
+                        try {
+                            List<Address> addresses = mGeocoder.getFromLocationName(addressString, 2, ABAJOIZQLAT,ABAJOIZQLONG,ARRIBADERLAT,ARRIBADERLONG);
+
+                            if (addresses != null && !addresses.isEmpty()) {
+
+                                Address addressResult = addresses.get(0);
+                                LatLng position = new LatLng(addressResult.getLatitude(), addressResult.getLongitude());
+                                if (mMap != null) {
+                                    MarkerOptions myMarkerOptions = new MarkerOptions();
+                                    myMarkerOptions.position(position);
+                                    myMarkerOptions.title("Dirección Encontrada");
+                                    myMarkerOptions.icon(BitmapDescriptorFactory.fromResource(R.drawable.navpin32));
+                                    lastmark = mMap.addMarker(myMarkerOptions);
+                                    mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(position, 14));
+                                    String s =getString(R.string.distancia);
+                                    distance.setText(s+ " " + String.valueOf(distancepoint(newmark.getPosition().latitude,
+                                            newmark.getPosition().longitude, position.latitude,position.longitude)) + " Km");
+                                }
+                            } else {Toast.makeText(MapActivity.this, "Dirección no encontrada", Toast.LENGTH_SHORT).show();}
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    } else {Toast.makeText(MapActivity.this, "La dirección esta vacía", Toast.LENGTH_SHORT).show();}
+                }
+                return false;
+            }
+        });
+    }
+
+    public double distancepoint(double lat1, double long1, double lat2, double long2) {
+        double latDistance = Math.toRadians(lat1 - lat2);
+        double lngDistance = Math.toRadians(long1 - long2);
+        double a = Math.sin(latDistance / 2) * Math.sin(latDistance / 2)
+                + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
+                * Math.sin(lngDistance / 2) * Math.sin(lngDistance / 2);
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        double result = RADIUS_OF_EARTH_KM * c;
+        return Math.round(result * 100.0) / 100.0;
     }
 
     protected LocationRequest createLocationRequest() {
@@ -216,7 +306,7 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback 
 
 
 
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
+    /*public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
                                            @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         switch (requestCode) {
@@ -225,7 +315,7 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback 
                 break;
             }
         }
-    }
+    }*/
 
 
     /**
@@ -241,13 +331,40 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback 
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
 
+        Date currentTime = Calendar.getInstance().getTime();
+
+        if (currentTime.getHours() >= 18 || currentTime.getHours() <= 6)
+        {
+            mMap.setMapStyle(MapStyleOptions
+                    .loadRawResourceStyle(this, R.raw.noche));
+        }
+        else
+        {
+            mMap.setMapStyle(MapStyleOptions
+                    .loadRawResourceStyle(this, R.raw.dia));
+        }
+
+
         // Add a marker in Sydney and move the camera
-        LatLng bogota = new LatLng(4.597908 , -74.076066);
         //LatLng bogota2 = new LatLng(4.397908 , -74.076066);
         //mMap.addMarker(new MarkerOptions().position(bogota).title("Marcador en Plaza de Bolívar").snippet("test").alpha(1f).icon(BitmapDescriptorFactory.fromResource(R.drawable.placeholder)));
         //mMap.addMarker(new MarkerOptions().position(bogota2).title("Marcador en Plaza de Bolívar").snippet("test").alpha(1f).icon(BitmapDescriptorFactory.fromResource(R.drawable.userpin)));
-        mMap.moveCamera(CameraUpdateFactory.zoomTo(10));
-        mMap.moveCamera(CameraUpdateFactory.newLatLng(bogota));
+        //mMap.moveCamera(CameraUpdateFactory.zoomTo(10));
+        //mMap.moveCamera(CameraUpdateFactory.newLatLng(bogota));
+
         mMap.getUiSettings().setZoomControlsEnabled(true);
+
+        LatLng Tequendama = new LatLng(4.613079,-74.070752);
+        LatLng Ibis = new LatLng(4.614641,-74.069025);
+        LatLng Marriott = new LatLng(4.659429,-74.108398);
+        LatLng hilton = new LatLng(4.655761,-74.055403);
+        LatLng Atton = new LatLng(4.685638,-74.056165);
+
+        mMap.addMarker(new MarkerOptions().position(Tequendama).title("Tequendama").snippet("10:00 - 15:00").icon(BitmapDescriptorFactory.fromResource(R.drawable.placeholder32)));
+        mMap.addMarker(new MarkerOptions().position(Ibis).title("Ibis").snippet("10:00 - 15:00").icon(BitmapDescriptorFactory.fromResource(R.drawable.placeholder32)));
+        mMap.addMarker(new MarkerOptions().position(Marriott).title("Marriott").snippet("10:00 - 15:00").icon(BitmapDescriptorFactory.fromResource(R.drawable.placeholder32)));
+        mMap.addMarker(new MarkerOptions().position(hilton).title("Hilton").snippet("10:00 - 15:00").icon(BitmapDescriptorFactory.fromResource(R.drawable.placeholder32)));
+        mMap.addMarker(new MarkerOptions().position(Atton).title("Atton").snippet("10:00 - 15:00").icon(BitmapDescriptorFactory.fromResource(R.drawable.placeholder32)));
+
     }
 }

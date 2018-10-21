@@ -2,4 +2,6 @@
     <string name="app_name">AppMap</string>
     <string name="title_activity_map">AppMap</string>
     <string name="appmap">AppMap</string>
+    <string name="Ir">Ir...</string>
+    <string name="distancia">Distancia: </string>
 </resources>
