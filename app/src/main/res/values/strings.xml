@@ -4,4 +4,7 @@
     <string name="appmap">AppMap</string>
     <string name="Ir">Ir...</string>
     <string name="distancia">Distancia: </string>
+    <string name="Nombre">Nombre:</string>
+    <string name="Precio">Precio:</string>
+    <string name="Calificacion">Calificación</string>
 </resources>

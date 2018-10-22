@@ -160,7 +160,7 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback 
                 if (location != null && mMap != null) {
                     if (voy == 0) {
                         LatLng user = new LatLng(location.getLatitude(), location.getLongitude());
-                        oldmark = mMap.addMarker(new MarkerOptions().position(user).title("Usted").icon(BitmapDescriptorFactory.fromResource(R.drawable.userpin32)));
+                        oldmark = mMap.addMarker(new MarkerOptions().position(user).title("Usted").snippet("                       ").icon(BitmapDescriptorFactory.fromResource(R.drawable.userpin32)));
                         newmark = oldmark;
                         mMap.moveCamera(CameraUpdateFactory.zoomTo(19));
                         mMap.moveCamera(CameraUpdateFactory.newLatLng(user));
@@ -169,7 +169,7 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback 
                     } else {
                         LatLng user = new LatLng(location.getLatitude(), location.getLongitude());
                         oldmark.remove();
-                        newmark = mMap.addMarker(new MarkerOptions().position(user).title("Usted").icon(BitmapDescriptorFactory.fromResource(R.drawable.userpin32)));
+                        newmark = mMap.addMarker(new MarkerOptions().position(user).title("Usted").snippet("                       ").icon(BitmapDescriptorFactory.fromResource(R.drawable.userpin32)));
                         oldmark = newmark;
 
                     }
@@ -236,6 +236,7 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback 
                                     MarkerOptions myMarkerOptions = new MarkerOptions();
                                     myMarkerOptions.position(position);
                                     myMarkerOptions.title("Dirección Encontrada");
+                                    myMarkerOptions.snippet("                       ");
                                     myMarkerOptions.icon(BitmapDescriptorFactory.fromResource(R.drawable.navpin32));
                                     lastmark = mMap.addMarker(myMarkerOptions);
                                     mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(position, 14));
@@ -351,11 +352,9 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback 
     }
 
     private void startLocationUpdates() {
-        Log.i("LOCATION", "1111111111111111111");
         if (ContextCompat.checkSelfPermission(this,
                 Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
             mFusedLocationClient.requestLocationUpdates(mLocationRequest, mLocationCallback, null);
-            Log.i("LOCATION", "222222222222222222");
         }
     }
 
@@ -431,25 +430,13 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback 
         LatLng Marriott = new LatLng(4.659429, -74.108398);
         LatLng hilton = new LatLng(4.655761, -74.055403);
         LatLng Atton = new LatLng(4.685638, -74.056165);
+        mMap.setInfoWindowAdapter(new CustomInfoWindowAdapter(this));
 
-        mMap.addMarker(new MarkerOptions().position(Tequendama).title("Tequendama").snippet("10:00 - 15:00").icon(BitmapDescriptorFactory.fromResource(R.drawable.placeholder32)));
-        mMap.addMarker(new MarkerOptions().position(Ibis).title("Ibis").snippet("10:00 - 15:00").icon(BitmapDescriptorFactory.fromResource(R.drawable.placeholder32)));
-        mMap.addMarker(new MarkerOptions().position(Marriott).title("Marriott").snippet("10:00 - 15:00").icon(BitmapDescriptorFactory.fromResource(R.drawable.placeholder32)));
-        mMap.addMarker(new MarkerOptions().position(hilton).title("Hilton").snippet("10:00 - 15:00").icon(BitmapDescriptorFactory.fromResource(R.drawable.placeholder32)));
-        mMap.addMarker(new MarkerOptions().position(Atton).title("Atton").snippet("10:00 - 15:00").icon(BitmapDescriptorFactory.fromResource(R.drawable.placeholder32)));
+        mMap.addMarker(new MarkerOptions().position(Tequendama).title("Tequendama").snippet("300000    4.6  ").icon(BitmapDescriptorFactory.fromResource(R.drawable.placeholder32)));
+        mMap.addMarker(new MarkerOptions().position(Ibis).title("Ibis").snippet("300000    4.6  ").icon(BitmapDescriptorFactory.fromResource(R.drawable.placeholder32)));
+        mMap.addMarker(new MarkerOptions().position(Marriott).title("Marriott").snippet("300000    4.6  ").icon(BitmapDescriptorFactory.fromResource(R.drawable.placeholder32)));
+        mMap.addMarker(new MarkerOptions().position(Atton).title("Atton").snippet("300000    4.6  ").icon(BitmapDescriptorFactory.fromResource(R.drawable.placeholder32)));
 
-
-        /*if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            // TODO: Consider calling
-            //    ActivityCompat#requestPermissions
-            // here to request the missing permissions, and then overriding
-            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-            //                                          int[] grantResults)
-            // to handle the case where the user grants the permission. See the documentation
-            // for ActivityCompat#requestPermissions for more details.
-            return;
-        }
-        mMap.setMyLocationEnabled(true);*/
 
     }
 }
